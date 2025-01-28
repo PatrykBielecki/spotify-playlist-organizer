@@ -1,12 +1,15 @@
 'use client';
 
-import { useUserStore } from '@/store/userStore';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useSpotify } from '@/hooks/useSpotify';
+import { useState, useEffect } from 'react';
+import {useUserStore} from "@/store/userStore";
+import {useRouter} from "next/navigation";
 
 export default function DashboardPage() {
     const token = useUserStore((state) => state.token);
     const router = useRouter();
+    const spotifyApi = useSpotify();
+    const [user, setUser] = useState<{ display_name?: string } | null>(null);
 
     useEffect(() => {
         if (!token) {
@@ -17,12 +20,20 @@ export default function DashboardPage() {
                 router.push('/login');
             }
         }
+
+        if (token) {
+            spotifyApi.getMe().then((data) => setUser(data));
+        }
     }, [token]);
 
     return (
         <main className="p-8">
             <h1 className="text-3xl font-bold">🎧 Dashboard</h1>
-            <p className="mt-4 text-lg">Welcome! You're logged in.</p>
+            {user ? (
+                <p className="mt-4 text-lg">Welcome, {user.display_name}!</p>
+            ) : (
+                <p className="mt-4 text-gray-400">Loading user...</p>
+            )}
         </main>
     );
 }
