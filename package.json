@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "next": "15.4.5",
+    "pkce-challenge": "^5.0.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "spotify-web-api-js": "^1.5.2",
