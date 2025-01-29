@@ -1,27 +1,52 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { useUserStore } from '@/store/userStore';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function AuthCallback() {
-    const router = useRouter();
     const setToken = useUserStore((state) => state.setToken);
+    const router = useRouter();
+    const searchParams = useSearchParams();
 
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const hash = window.location.hash;
-            const params = new URLSearchParams(hash.replace('#', ''));
-            const accessToken = params.get('access_token');
+        const code = searchParams.get('code');
+        const verifier = localStorage.getItem('spotify_code_verifier');
 
-            if (accessToken) {
-                setToken(accessToken);
-                localStorage.setItem('spotify_access_token', accessToken);
-                router.push('/dashboard');
-            } else {
-                router.push('/login');
-            }
+        if (!code || !verifier) {
+            router.push('/login');
+            return;
         }
+
+        const clientId = process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID!;
+        const redirectUri = `${process.env.NEXT_PUBLIC_BASE_URL}/auth/callback`;
+
+        const body = new URLSearchParams({
+            client_id: clientId,
+            grant_type: 'authorization_code',
+            code: code,
+            redirect_uri: redirectUri,
+            code_verifier: verifier,
+        });
+
+        fetch('https://accounts.spotify.com/api/token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body,
+        })
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.access_token) {
+                    setToken(data.access_token);
+                    localStorage.setItem('spotify_access_token', data.access_token);
+                    router.push('/dashboard');
+                } else {
+                    console.error('Token exchange failed:', data);
+                    router.push('/login');
+                }
+            });
     }, []);
 
     return (
