@@ -19,7 +19,9 @@ export default function DashboardPage() {
 
     const [user, setUser] = useState<{ display_name?: string } | null>(null);
     const [playlists, setPlaylists] = useState<Playlist[]>([]);
+    const [filteredPlaylists, setFilteredPlaylists] = useState<Playlist[]>([]);
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+    const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
         if (!token) {
@@ -46,6 +48,13 @@ export default function DashboardPage() {
         }
     }, [token, sortOrder]);
 
+    useEffect(() => {
+        const filtered = playlists.filter((playlist) =>
+            playlist.name.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+        setFilteredPlaylists(filtered);
+    }, [playlists, searchQuery]);
+
     const handleLogout = () => {
         localStorage.removeItem('spotify_access_token');
         useUserStore.getState().clearToken();
@@ -64,27 +73,37 @@ export default function DashboardPage() {
                 <p className="mt-4 text-lg">Welcome, {user.display_name}!</p>
             )}
 
-            <div className="mt-6 flex gap-4">
-                <button
-                    onClick={toggleSortOrder}
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                >
-                    Sort: {sortOrder === 'asc' ? 'A → Z' : 'Z → A'}
-                </button>
+            <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex gap-4">
+                    <button
+                        onClick={toggleSortOrder}
+                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                        Sort: {sortOrder === 'asc' ? 'A → Z' : 'Z → A'}
+                    </button>
 
-                <button
-                    onClick={handleLogout}
-                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-                >
-                    Logout
-                </button>
+                    <button
+                        onClick={handleLogout}
+                        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                    >
+                        Logout
+                    </button>
+                </div>
+
+                <input
+                    type="text"
+                    placeholder="Search playlists..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="px-4 py-2 rounded bg-zinc-800 text-white border border-zinc-700 placeholder-gray-400"
+                />
             </div>
 
             <section className="mt-10 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {playlists.length === 0 ? (
-                    <p className="text-gray-400">Loading playlists...</p>
+                {filteredPlaylists.length === 0 ? (
+                    <p className="text-gray-400">No playlists found.</p>
                 ) : (
-                    playlists.map((playlist) => (
+                    filteredPlaylists.map((playlist) => (
                         <div
                             key={playlist.id}
                             className="bg-zinc-800 p-4 rounded shadow hover:bg-zinc-700 cursor-pointer transition"
