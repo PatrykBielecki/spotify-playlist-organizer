@@ -118,6 +118,9 @@ export default function DashboardPage() {
                             <h2 className="text-white font-semibold text-lg">
                                 {playlist.name}
                             </h2>
+                            <p className="text-gray-400 text-sm mt-1">
+                                {playlist.tracks.total} track{playlist.tracks.total !== 1 ? 's' : ''}
+                            </p>
                         </div>
                     ))
                 )}
