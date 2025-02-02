@@ -22,6 +22,8 @@ export default function DashboardPage() {
     const [filteredPlaylists, setFilteredPlaylists] = useState<Playlist[]>([]);
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
     const [searchQuery, setSearchQuery] = useState('');
+    const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [playlistTracks, setPlaylistTracks] = useState<Record<string, SpotifyApi.TrackObjectFull[]>>({});
 
     useEffect(() => {
         if (!token) {
@@ -65,6 +67,29 @@ export default function DashboardPage() {
         setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
     };
 
+    const handlePlaylistClick = async (playlistId: string) => {
+        if (expandedId === playlistId) {
+            setExpandedId(null);
+            return;
+        }
+
+        setExpandedId(playlistId);
+
+        if (!playlistTracks[playlistId]) {
+            const data = await spotifyApi.getPlaylistTracks(playlistId);
+            setPlaylistTracks((prev) => ({
+                ...prev,
+                [playlistId]: data.items.map((item) => item.track as SpotifyApi.TrackObjectFull),
+            }));
+        }
+    };
+
+    const formatDuration = (ms: number) => {
+        const minutes = Math.floor(ms / 60000);
+        const seconds = Math.floor((ms % 60000) / 1000);
+        return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+    };
+
     return (
         <main className="p-8">
             <h1 className="text-3xl font-bold">🎧 Dashboard</h1>
@@ -106,6 +131,7 @@ export default function DashboardPage() {
                     filteredPlaylists.map((playlist) => (
                         <div
                             key={playlist.id}
+                            onClick={() => handlePlaylistClick(playlist.id)}
                             className="bg-zinc-800 p-4 rounded shadow hover:bg-zinc-700 cursor-pointer transition"
                         >
                             {playlist.images?.[0] && (
@@ -121,6 +147,19 @@ export default function DashboardPage() {
                             <p className="text-gray-400 text-sm mt-1">
                                 {playlist.tracks.total} track{playlist.tracks.total !== 1 ? 's' : ''}
                             </p>
+
+                            {expandedId === playlist.id && playlistTracks[playlist.id] && (
+                                <div className="mt-4 space-y-2 max-h-64 overflow-y-auto border-t border-zinc-700 pt-2">
+                                    {playlistTracks[playlist.id].map((track, index) => (
+                                        <div key={`${track.id}-${index}`} className="text-sm text-gray-300">
+                                            <p className="font-medium">{track.name}</p>
+                                            <p className="text-xs text-gray-400">
+                                                {track.artists.map((a) => a.name).join(', ')} • {track.album.name} • {formatDuration(track.duration_ms)}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     ))
                 )}
