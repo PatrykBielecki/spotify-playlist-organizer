@@ -24,6 +24,7 @@ export default function DashboardPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [playlistTracks, setPlaylistTracks] = useState<Record<string, SpotifyApi.TrackObjectFull[]>>({});
+    const [removing, setRemoving] = useState(false);
 
     useEffect(() => {
         if (!token) {
@@ -90,6 +91,51 @@ export default function DashboardPage() {
         return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
     };
 
+    const removeDuplicates = async (playlistId: string) => {
+        const tracks = playlistTracks[playlistId];
+        if (!tracks) return;
+
+        const seen = new Set<string>();
+        const duplicates: SpotifyApi.TrackObjectFull[] = [];
+
+        tracks.forEach((track) => {
+            if (seen.has(track.id)) {
+                duplicates.push(track);
+            } else {
+                seen.add(track.id);
+            }
+        });
+
+        if (duplicates.length === 0) {
+            alert('No duplicates found!');
+            return;
+        }
+
+        setRemoving(true);
+
+        try {
+            const urisToRemove = duplicates.map((track) => ({
+                uri: track.uri,
+            }));
+
+            await spotifyApi.removeTracksFromPlaylist(playlistId, urisToRemove);
+
+            // Refresh playlist tracks after removal
+            const updated = await spotifyApi.getPlaylistTracks(playlistId);
+            setPlaylistTracks((prev) => ({
+                ...prev,
+                [playlistId]: updated.items.map((item) => item.track as SpotifyApi.TrackObjectFull),
+            }));
+
+            alert(`Removed ${duplicates.length} duplicate track(s).`);
+        } catch (err) {
+            console.error('Error removing duplicates:', err);
+            alert('Failed to remove duplicates.');
+        } finally {
+            setRemoving(false);
+        }
+    };
+
     return (
         <main className="p-8">
             <h1 className="text-3xl font-bold">🎧 Dashboard</h1>
@@ -150,6 +196,17 @@ export default function DashboardPage() {
 
                             {expandedId === playlist.id && playlistTracks[playlist.id] && (
                                 <div className="mt-4 space-y-2 max-h-64 overflow-y-auto border-t border-zinc-700 pt-2">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation(); // prevent collapsing
+                                            removeDuplicates(playlist.id);
+                                        }}
+                                        disabled={removing}
+                                        className="mb-4 bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-sm"
+                                    >
+                                        {removing ? 'Removing...' : '🧹 Remove Duplicates'}
+                                    </button>
+
                                     {playlistTracks[playlist.id].map((track, index) => (
                                         <div key={`${track.id}-${index}`} className="text-sm text-gray-300">
                                             <p className="font-medium">{track.name}</p>
