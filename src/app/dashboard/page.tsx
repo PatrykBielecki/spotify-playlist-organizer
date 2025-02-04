@@ -17,7 +17,7 @@ export default function DashboardPage() {
     const router = useRouter();
     const spotifyApi = useSpotify();
 
-    const [user, setUser] = useState<{ display_name?: string } | null>(null);
+    const [user, setUser] = useState<SpotifyApi.CurrentUsersProfileResponse | null>(null);
     const [playlists, setPlaylists] = useState<Playlist[]>([]);
     const [filteredPlaylists, setFilteredPlaylists] = useState<Playlist[]>([]);
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -40,7 +40,9 @@ export default function DashboardPage() {
         }
 
         if (token) {
-            spotifyApi.getMe().then(setUser);
+            spotifyApi.getMe().then((userData) => {
+                setUser(userData);
+            });
 
             spotifyApi.getUserPlaylists().then((data) => {
                 const sorted = [...data.items].sort((a, b) => {
@@ -146,6 +148,11 @@ export default function DashboardPage() {
             return;
         }
 
+        if (!user?.id) {
+            alert('User not loaded.');
+            return;
+        }
+
         setMerging(true);
         try {
             const allTracks: SpotifyApi.TrackObjectFull[] = [];
@@ -156,18 +163,17 @@ export default function DashboardPage() {
                 allTracks.push(...tracks);
             }
 
-            // Deduplicate by ID
-            const uniqueTracksMap = new Map<string, SpotifyApi.TrackObjectFull>();
+            const uniqueMap = new Map<string, SpotifyApi.TrackObjectFull>();
             for (const track of allTracks) {
-                if (!uniqueTracksMap.has(track.id)) {
-                    uniqueTracksMap.set(track.id, track);
+                if (!uniqueMap.has(track.id)) {
+                    uniqueMap.set(track.id, track);
                 }
             }
 
-            const uniqueTracks = Array.from(uniqueTracksMap.values());
+            const uniqueTracks = Array.from(uniqueMap.values());
 
             const name = `Merged Playlist (${new Date().toLocaleDateString()})`;
-            const newPlaylist = await spotifyApi.createPlaylist(user?.display_name ?? 'Me', {
+            const newPlaylist = await spotifyApi.createPlaylist(user.id, {
                 name,
                 description: 'Created by Spotify Playlist Organizer',
                 public: false,
