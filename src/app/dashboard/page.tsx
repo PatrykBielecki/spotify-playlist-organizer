@@ -25,6 +25,8 @@ export default function DashboardPage() {
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [playlistTracks, setPlaylistTracks] = useState<Record<string, SpotifyApi.TrackObjectFull[]>>({});
     const [removing, setRemoving] = useState(false);
+    const [selectedPlaylists, setSelectedPlaylists] = useState<Set<string>>(new Set());
+    const [merging, setMerging] = useState(false);
 
     useEffect(() => {
         if (!token) {
@@ -114,13 +116,9 @@ export default function DashboardPage() {
         setRemoving(true);
 
         try {
-            const urisToRemove = duplicates.map((track) => ({
-                uri: track.uri,
-            }));
-
+            const urisToRemove = duplicates.map((track) => ({ uri: track.uri }));
             await spotifyApi.removeTracksFromPlaylist(playlistId, urisToRemove);
 
-            // Refresh playlist tracks after removal
             const updated = await spotifyApi.getPlaylistTracks(playlistId);
             setPlaylistTracks((prev) => ({
                 ...prev,
@@ -136,13 +134,65 @@ export default function DashboardPage() {
         }
     };
 
+    const toggleSelectPlaylist = (id: string) => {
+        const newSet = new Set(selectedPlaylists);
+        newSet.has(id) ? newSet.delete(id) : newSet.add(id);
+        setSelectedPlaylists(newSet);
+    };
+
+    const mergeSelectedPlaylists = async () => {
+        if (selectedPlaylists.size < 2) {
+            alert('Select at least 2 playlists to merge.');
+            return;
+        }
+
+        setMerging(true);
+        try {
+            const allTracks: SpotifyApi.TrackObjectFull[] = [];
+
+            for (const playlistId of selectedPlaylists) {
+                const data = await spotifyApi.getPlaylistTracks(playlistId);
+                const tracks = data.items.map((item) => item.track as SpotifyApi.TrackObjectFull);
+                allTracks.push(...tracks);
+            }
+
+            // Deduplicate by ID
+            const uniqueTracksMap = new Map<string, SpotifyApi.TrackObjectFull>();
+            for (const track of allTracks) {
+                if (!uniqueTracksMap.has(track.id)) {
+                    uniqueTracksMap.set(track.id, track);
+                }
+            }
+
+            const uniqueTracks = Array.from(uniqueTracksMap.values());
+
+            const name = `Merged Playlist (${new Date().toLocaleDateString()})`;
+            const newPlaylist = await spotifyApi.createPlaylist(user?.display_name ?? 'Me', {
+                name,
+                description: 'Created by Spotify Playlist Organizer',
+                public: false,
+            });
+
+            const uris = uniqueTracks.map((track) => track.uri);
+            for (let i = 0; i < uris.length; i += 100) {
+                await spotifyApi.addTracksToPlaylist(newPlaylist.id, uris.slice(i, i + 100));
+            }
+
+            alert(`Merged ${selectedPlaylists.size} playlists into "${name}"`);
+            setSelectedPlaylists(new Set());
+        } catch (err) {
+            console.error('Merge error:', err);
+            alert('Failed to merge playlists.');
+        } finally {
+            setMerging(false);
+        }
+    };
+
     return (
         <main className="p-8">
             <h1 className="text-3xl font-bold">🎧 Dashboard</h1>
 
-            {user && (
-                <p className="mt-4 text-lg">Welcome, {user.display_name}!</p>
-            )}
+            {user && <p className="mt-4 text-lg">Welcome, {user.display_name}!</p>}
 
             <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex gap-4">
@@ -170,6 +220,18 @@ export default function DashboardPage() {
                 />
             </div>
 
+            {selectedPlaylists.size > 0 && (
+                <div className="mt-4">
+                    <button
+                        onClick={mergeSelectedPlaylists}
+                        disabled={merging}
+                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm"
+                    >
+                        {merging ? 'Merging...' : `Merge Selected (${selectedPlaylists.size})`}
+                    </button>
+                </div>
+            )}
+
             <section className="mt-10 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {filteredPlaylists.length === 0 ? (
                     <p className="text-gray-400">No playlists found.</p>
@@ -178,8 +240,18 @@ export default function DashboardPage() {
                         <div
                             key={playlist.id}
                             onClick={() => handlePlaylistClick(playlist.id)}
-                            className="bg-zinc-800 p-4 rounded shadow hover:bg-zinc-700 cursor-pointer transition"
+                            className="bg-zinc-800 p-4 rounded shadow hover:bg-zinc-700 cursor-pointer transition relative"
                         >
+                            <input
+                                type="checkbox"
+                                checked={selectedPlaylists.has(playlist.id)}
+                                onChange={(e) => {
+                                    e.stopPropagation();
+                                    toggleSelectPlaylist(playlist.id);
+                                }}
+                                className="absolute top-2 left-2 w-4 h-4"
+                            />
+
                             {playlist.images?.[0] && (
                                 <img
                                     src={playlist.images[0].url}
@@ -198,7 +270,7 @@ export default function DashboardPage() {
                                 <div className="mt-4 space-y-2 max-h-64 overflow-y-auto border-t border-zinc-700 pt-2">
                                     <button
                                         onClick={(e) => {
-                                            e.stopPropagation(); // prevent collapsing
+                                            e.stopPropagation();
                                             removeDuplicates(playlist.id);
                                         }}
                                         disabled={removing}
