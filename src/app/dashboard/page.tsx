@@ -28,6 +28,41 @@ export default function DashboardPage() {
     const [selectedPlaylists, setSelectedPlaylists] = useState<Set<string>>(new Set());
     const [merging, setMerging] = useState(false);
 
+    // Load preferences on mount
+    useEffect(() => {
+        const storedSort = localStorage.getItem('sort_order');
+        const storedSearch = localStorage.getItem('search_query');
+        const storedSelected = localStorage.getItem('selected_playlists');
+
+        if (storedSort === 'asc' || storedSort === 'desc') {
+            setSortOrder(storedSort);
+        }
+
+        if (storedSearch) {
+            setSearchQuery(storedSearch);
+        }
+
+        if (storedSelected) {
+            try {
+                const parsed = JSON.parse(storedSelected);
+                setSelectedPlaylists(new Set(parsed));
+            } catch {}
+        }
+    }, []);
+
+    // Persist preferences
+    useEffect(() => {
+        localStorage.setItem('sort_order', sortOrder);
+    }, [sortOrder]);
+
+    useEffect(() => {
+        localStorage.setItem('search_query', searchQuery);
+    }, [searchQuery]);
+
+    useEffect(() => {
+        localStorage.setItem('selected_playlists', JSON.stringify(Array.from(selectedPlaylists)));
+    }, [selectedPlaylists]);
+
     useEffect(() => {
         if (!token) {
             const stored = localStorage.getItem('spotify_access_token');
