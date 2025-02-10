@@ -28,20 +28,13 @@ export default function DashboardPage() {
     const [selectedPlaylists, setSelectedPlaylists] = useState<Set<string>>(new Set());
     const [merging, setMerging] = useState(false);
 
-    // Load preferences on mount
     useEffect(() => {
         const storedSort = localStorage.getItem('sort_order');
         const storedSearch = localStorage.getItem('search_query');
         const storedSelected = localStorage.getItem('selected_playlists');
 
-        if (storedSort === 'asc' || storedSort === 'desc') {
-            setSortOrder(storedSort);
-        }
-
-        if (storedSearch) {
-            setSearchQuery(storedSearch);
-        }
-
+        if (storedSort === 'asc' || storedSort === 'desc') setSortOrder(storedSort);
+        if (storedSearch) setSearchQuery(storedSearch);
         if (storedSelected) {
             try {
                 const parsed = JSON.parse(storedSelected);
@@ -50,7 +43,6 @@ export default function DashboardPage() {
         }
     }, []);
 
-    // Persist preferences
     useEffect(() => {
         localStorage.setItem('sort_order', sortOrder);
     }, [sortOrder]);
@@ -75,9 +67,7 @@ export default function DashboardPage() {
         }
 
         if (token) {
-            spotifyApi.getMe().then((userData) => {
-                setUser(userData);
-            });
+            spotifyApi.getMe().then(setUser);
 
             spotifyApi.getUserPlaylists().then((data) => {
                 const sorted = [...data.items].sort((a, b) => {
@@ -230,23 +220,25 @@ export default function DashboardPage() {
     };
 
     return (
-        <main className="p-8">
-            <h1 className="text-3xl font-bold">🎧 Dashboard</h1>
+        <main className="p-6 sm:p-8">
+            <h1 className="text-3xl font-bold text-white">🎧 Dashboard</h1>
 
-            {user && <p className="mt-4 text-lg">Welcome, {user.display_name}!</p>}
+            {user && (
+                <p className="mt-2 text-lg text-gray-300">Welcome, {user.display_name}!</p>
+            )}
 
             <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex gap-4">
+                <div className="flex flex-wrap gap-4">
                     <button
                         onClick={toggleSortOrder}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
                     >
                         Sort: {sortOrder === 'asc' ? 'A → Z' : 'Z → A'}
                     </button>
 
                     <button
                         onClick={handleLogout}
-                        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
                     >
                         Logout
                     </button>
@@ -257,7 +249,7 @@ export default function DashboardPage() {
                     placeholder="Search playlists..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="px-4 py-2 rounded bg-zinc-800 text-white border border-zinc-700 placeholder-gray-400"
+                    className="px-4 py-2 rounded bg-zinc-800 text-white border border-zinc-700 placeholder-gray-400 w-full sm:w-auto"
                 />
             </div>
 
@@ -266,7 +258,7 @@ export default function DashboardPage() {
                     <button
                         onClick={mergeSelectedPlaylists}
                         disabled={merging}
-                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm"
+                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm transition"
                     >
                         {merging ? 'Merging...' : `Merge Selected (${selectedPlaylists.size})`}
                     </button>
@@ -281,7 +273,7 @@ export default function DashboardPage() {
                         <div
                             key={playlist.id}
                             onClick={() => handlePlaylistClick(playlist.id)}
-                            className="bg-zinc-800 p-4 rounded shadow hover:bg-zinc-700 cursor-pointer transition relative"
+                            className="bg-zinc-800 p-4 rounded shadow hover:bg-zinc-700 cursor-pointer transition duration-200 relative"
                         >
                             <input
                                 type="checkbox"
@@ -297,7 +289,7 @@ export default function DashboardPage() {
                                 <img
                                     src={playlist.images[0].url}
                                     alt={playlist.name}
-                                    className="rounded mb-4"
+                                    className="rounded mb-4 w-full h-auto"
                                 />
                             )}
                             <h2 className="text-white font-semibold text-lg">
@@ -315,7 +307,7 @@ export default function DashboardPage() {
                                             removeDuplicates(playlist.id);
                                         }}
                                         disabled={removing}
-                                        className="mb-4 bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-sm"
+                                        className="mb-4 bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-sm transition"
                                     >
                                         {removing ? 'Removing...' : '🧹 Remove Duplicates'}
                                     </button>
