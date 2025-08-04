@@ -4,6 +4,7 @@ import { useUserStore } from '@/store/userStore';
 import { useSpotify } from '@/hooks/useSpotify';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import PlaylistInsights from '@/components/PlaylistInsights';
 
 type Playlist = {
     id: string;
@@ -264,6 +265,8 @@ export default function DashboardPage() {
                     </button>
                 </div>
             )}
+
+            <PlaylistInsights playlistIds={filteredPlaylists.map((p) => p.id)} />
 
             <section className="mt-10 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {filteredPlaylists.length === 0 ? (
